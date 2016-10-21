@@ -27,13 +27,14 @@ def calculate_MSD(particleData,frame_rate,conversion,timescales):
     maxframe=particleData['frame'].max()    
     #timescales=get_timescales(frame_rate,maxframe+1)
     
-    mean_disps=particleData.groupby('particle').apply(lambda p: get_diffs(p.x,p.y,conversion))
+    #mean_disps=particleData.groupby('particle').apply(lambda p: get_diffs(p.x,p.y,conversion))
+    MSD=particleData.groupby('particle').apply(lambda p: prep_fft_MSD(p.x,p.y,conversion))
     #xdisps=mean_disps.apply(lambda p: p[1])
     #ydisps=mean_disps.apply(lambda p: p[2])
     #xdisps=xdisps.apply(lambda p: p[~np.isnan(p)])
     #ydisps=ydisps.apply(lambda p: p[~np.isnan(p)])
     #count=xdisps.apply(lambda p: p.size)
-    MSD=mean_disps.apply(lambda p: p[1]+p[2]) 
+    #MSD=mean_disps.apply(lambda p: p[1]+p[2]) 
     Deff=MSD.apply(lambda p: p/4/timescales[0:p.size])
     #MSDy=ydisps.apply(lambda p: (conversion**2)*np.cumsum(((p)**2)))
     #MSDx=MSDx/count
@@ -272,7 +273,7 @@ def MSD_frame_by_frame(Deff,filt_data,MSD):
     return fraction_moving,num_particles_frame,logDeffdist,A_deff,fbf_edges,frame_geom,avg_particles_frame
 
 def msd_fft(r):
-    r=r.as_array()
+    
     N=len(r)
     D=np.square(r).sum(axis=1) 
     D=np.append(D,0) 
@@ -282,7 +283,9 @@ def msd_fft(r):
     for m in range(N):
         Q=Q-D[m-1]-D[N-m]
         S1[m]=Q/(N-m)
-    return S1-2*S2
+    msds=S1-2*S2
+    
+    return msds[1:]
 
 def autocorrFFT(x):
     N=len(x)
@@ -301,7 +304,7 @@ def abs_velocities(data,conversion,timescales):
     
     return velocities
 
-def vel_frame_by_frame(filt_data,velocities,threshold):
+def vel_frame_by_frame(filt_data,velocities,maxdisps,threshold):
         
     max_frame=filt_data['frame'].max()    
     
@@ -373,3 +376,9 @@ def get_diffs(particlex,particley,conversion):
    
     mean_disps=np.sqrt(mean_dispsx**2+mean_dispsy**2)    
     return mean_disps,MSDx,MSDy
+
+def prep_fft_MSD(x,y,conversion):
+    x=np.asarray(x)*conversion
+    y=np.asarray(y)*conversion
+    path=np.dstack((x,y))[0]
+    return msd_fft(path)

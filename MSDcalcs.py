@@ -9,11 +9,14 @@ import numpy as np
 import os
 import shutil
 import math 
+import datetime
 
-def MSDCalcs(mydir):
+def MSDCalcs(mydir,expttag):
 
     files=os.listdir(mydir)
+    
     files=[file for file in files if file.endswith('.xlsx')]
+    files=[file for file in files if '~' not in file]
     anpath=os.path.join(mydir,'Analyzed Movies')
     if os.path.isdir(anpath)==False:
         os.mkdir(anpath)
@@ -34,24 +37,33 @@ def MSDCalcs(mydir):
     logDeff25.insert(0,'logDeff(10)',np.round(np.arange(-7,3,.25),decimals=2))
     
     for file in files:
-        data=pd.read_excel(os.path.join(mydir,file),index_col=None,header=0)
+        data=pd.read_excel(os.path.join(mydir,file),index_col=None,skiprows=[0],header=None,names=['particle','frame','x','y'])
         if data.empty:
-            print('The tracking file could not be loaded. The file is either empty, or is not formatted correctly.')
+            print('The tracking file ' +file+' could not be loaded. The file is either empty, or is not formatted correctly.')
+            finFrameMSD=finFrameMSD.drop(file,1)
+            finpartDeff=finpartDeff.drop(file,0)
+            logDeff05=logDeff05.drop(file,1)
+            logDeff1=logDeff1.drop(file,1)
+            logDeff25=logDeff25.drop(file,1)
         else: 
                      
             maxframe=data['frame'].max()
-            time=ap.get_timescales(frame_rate,maxframe)
+            time=pd.Series(ap.get_timescales(frame_rate,maxframe))
             [filt_data,num_bad,avg_bad_frames,num_good,avg_good_frames]=ap.frame_filter(data,min_frames)
         
             if filt_data.empty:
-                print('There are no particles tracked for more than the minimum number of frames. Please check' + file + ', or lower the minimum number of frames.')
-            
+                print('There are no particles tracked for more than the minimum number of frames. Please check ' + file + ', or lower the minimum number of frames.')
+                finFrameMSD=finFrameMSD.drop(file,1)
+                finpartDeff=finpartDeff.drop(file,0)
+                logDeff05=logDeff05.drop(file,1)
+                logDeff1=logDeff1.drop(file,1)
+                logDeff25=logDeff25.drop(file,1)
             else:
                 finData=ap.insert_blanks(filt_data)
                 [MSD,Deff]=ap.calculate_MSD(finData,frame_rate,conversion,time)
                 [num_stuck,avg_stuck_frames,MSD_stuck,XY_stuck,num_moving,avg_moving_frames,MSD_moving,XY_moving]=ap.MSD_classification(MSD, Deff, finData, min_frames, frame_rate, time,crittime)
                 [edges,bins,percentages]=ap.dist(finData,5)
-                time=pd.Series(time)
+                #time=pd.Series(time)
                 ap.format_sheets(MSD,time)
                 
                 ap.format_sheets(MSD_stuck,time)
@@ -138,15 +150,17 @@ def MSDCalcs(mydir):
                 logDeff1.loc[ind1s:ind1f-1,file]=avg_logDeff1.values
                 logDeff1.loc[0:ind1s,file]=0
                 logDeff25.loc[ind25s:ind25f-1,file]=avg_logDeff25.values
-                logDeff1.loc[0:ind1s,file]=0
+                logDeff25.loc[0:ind25s,file]=0
                 
                 print('completed'+file)
                 count=count+1
                 
                 
-                
+    now=datetime.datetime.now()
+    
+    finalname='CompiledData'+' ' +expttag+' '+str(now.year) + str(now.month) + str(now.day) + ' '+str(now.hour) +str(now.minute) +str(now.second)+'.xlsx'    
     ap.format_sheets(finFrameMSD,time)       
-    writer2 = pd.ExcelWriter(os.path.join(mydir,'Compiled Data 09292016.xlsx'), engine='xlsxwriter')    
+    writer2 = pd.ExcelWriter(os.path.join(mydir,finalname), engine='xlsxwriter')    
     finpartDeff.to_excel(writer2,sheet_name='# Particles & Deff')    
     finFrameMSD.to_excel(writer2,sheet_name='Frame By Frame MSD')
     logDeff05.to_excel(writer2,sheet_name='logDeff Bin Size .05')
@@ -159,7 +173,7 @@ def MSDCalcs(mydir):
     return
 
 
-MSDCalcs('C:\\Users\\amschaef\\Documents\\HSVtry2\\Reformatted_Data_Files\\Compiled Movies')                
+MSDCalcs('C:\\Users\\amschaef\\Documents\\GrantData\\ManualTrack\\200nmPSNH2 F21 140717 native pH 01\\test', 'testing')                
                 
                 
                 
