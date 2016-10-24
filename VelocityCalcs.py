@@ -37,11 +37,11 @@ def velocityCalcs(mydir):
            
             
             #velocities,avg_per_frame=ap.calc_velocity(filt_data, frame_rate, conversion)
-            #maxdisps=ap.max_displacement(filt_data)
+            maxdisps=ap.max_displacement(filt_data)
             #drift_vs=ap.drift_velocity(filt_data, maxdisps, conversion, frame_rate)
             [percent_moving, time_moving]=ap.velocity_classification(filt_data)
             
-            [avg_particles_frame,hist,velocities_by_frame,vel_based_mov,dist_based_mov]=ap.vel_frame_by_frame(filt_data,velocities,threshold)
+            [avg_particles_frame,hist,velocities_by_frame,vel_based_mov,dist_based_mov]=ap.vel_frame_by_frame(filt_data,velocities,maxdisps,threshold)
             ap.format_sheets(velocities_by_frame,timescales)
             ap.format_sheets(velocities,timescales)
             vel_mov.iloc[count]=vel_based_mov.values

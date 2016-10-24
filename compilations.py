@@ -10,6 +10,7 @@ from numpy import isnan
 import xlsxwriter
 import numpy as np
 import math
+import shutil
 
 def compile_movies(mydir):
     
@@ -60,7 +61,7 @@ def tracelink(mydir,conversion,cutoff):
         os.mkdir(os.path.join(mydir,'Linked Files'))
     files=os.listdir(mydir)
     for file in files:
-        data=pd.read_excel(os.path.join(mydir,file),header=None, skiprows=[0],names=['particle','frame','x','y'])
+        data=pd.read_excel(os.path.join(mydir,file),header=None,names=['particle','frame','x','y'],sheetname='Sheet3')
         exits=data.groupby('particle', as_index=False).apply(lambda p: p.tail(1))
         entries=data.groupby('particle').apply(lambda p: p.iloc[0])
         for i in range(0,exits.shape[0]):
@@ -89,8 +90,10 @@ def tracelink(mydir,conversion,cutoff):
         data.sort_values(['particle','frame'],inplace=True)
         writer=pd.ExcelWriter(os.path.join(mydir,'Linked Files',file), engine='xlsxwriter')
         data.to_excel(writer)   
+        writer.save()
+        shutil.move(os.path.join(mydir,file),'C:\\Users\\amschaef\\Documents\\Lai Lab\\Ebola in AM study\\Reformatted_Data_Files\\unaltered')
         
-        return
+    return
     
 def filesearch(dir):
         import shutil
@@ -106,7 +109,7 @@ def filesearch(dir):
         
         return 
     
-#tracelink('C:\\Users\\amschaef\\Documents\\HSV data\\Reformatted_Data_Files',.156,5)
+tracelink('C:\\Users\\amschaef\\Documents\\Lai Lab\\Ebola in AM study\\Reformatted_Data_Files',.156,5)
 #fixfiles('C:\\Users\\amschaef\\Documents\\HSVtry2\\Reformatted_Data_Files')
-compile_movies('C:\\Users\\amschaef\\Documents\\HSVtry2\\Reformatted_Data_Files')
+#compile_movies('C:\\Users\\amschaef\\Documents\\HSVtry2\\Reformatted_Data_Files')
 #filesearch('C:\\Users\\amschaef\\Documents\\HSV data')
