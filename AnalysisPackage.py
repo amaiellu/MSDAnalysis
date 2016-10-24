@@ -297,14 +297,14 @@ def autocorrFFT(x):
     return res/n #this is the autocorrelation in convention A
 
 def abs_velocities(data,conversion,timescales):
-    mean_disps=data.groupby('particle').apply(lambda p: get_diffs(p.x,p.y,conversion))
+    mean_disps=data.groupby('particle').apply(lambda p: get_diffs(p.x,p.y,conversion)[0])
     velocities=mean_disps.apply(lambda p: pd.Series(p*conversion/timescales[0:len(p)]))
     velocities=velocities.transpose()
     
     
     return velocities
 
-def vel_frame_by_frame(filt_data,velocities,maxdisps,threshold):
+def vel_frame_by_frame(filt_data,velocities,maxdisps):
         
     max_frame=filt_data['frame'].max()    
     
@@ -319,39 +319,45 @@ def vel_frame_by_frame(filt_data,velocities,maxdisps,threshold):
     velocities_by_frame=velocities_by_frame.transpose()
     
     num_particles=filt_data.groupby('frame').apply(lambda p: p.particle.nunique())
-    thresholds=[.25,.5,1,2,3,4,5,6,7,8,9,10]
-    num_particles_moving=pd.DataFrame(index=np.arange(0,filt_data['frame'].max()), columns=thresholds)
-    for threshold in thresholds:
-        fract_moving=filt_data.groupby('frame').apply(lambda p: ((velocities[p.particle.values].iloc[3]>=threshold)==True).sum())
-        fract_moving=fract_moving/num_particles
-        num_particles_moving[threshold]=fract_moving
-    num_particles_moving=num_particles_moving.mean(axis=0)    
-    disps=max_displacement(filt_data,.156)
-    dist_thresh=np.arange(.1,7,.1)
-    particles=filt_data.groupby('particle').filter(lambda p: p.x.size>=50)
-    particles=particles['particle'].unique()
-    num_dist_mov=pd.DataFrame(index=np.arange(0,filt_data['frame'].max()), columns=dist_thresh)
-    for i in range(0,len(dist_thresh)):
-        stuck=[]
-        for j in range(0,len(particles)):
-            if disps.iloc[particles[j]]<dist_thresh[i]:
-                stuck=np.append(stuck,particles[j])
-        numStuckFrame=pd.Series(index=np.arange(0,filt_data['frame'].max()+1))
-        for k in range(0,filt_data['frame'].max()+1): 
-            indFrame=filt_data[filt_data['frame']==k]
-            particlesFrame=indFrame['particle'].unique()
-            tr=np.in1d(stuck,particlesFrame)
-            numStuckFrame.iloc[k]=1-(np.sum(tr)/num_particles_frame)
+    
+    mov_particles = filt_data.groupby('particle').filter(lambda p: mean(sqrt(diff(p.x)**2 + diff(p.y)**2)) > 4.68
+            or sqrt((array(p.x)[-1]-array(p.x)[0])**2 + (array(p.y)[-1]-array(p.y)[0])**2) > 5*.78)
+    mov_particles=mov_particles['particle'].unique()  
+    pmobile=filt_data.groupby('frame').apply(lambda p: (np.in1d(mov_particles,p.particle).sum()))
+    m=0
+    #thresholds=[.25,.5,1,2,3,4,5,6,7,8,9,10]
+    #num_particles_moving=pd.DataFrame(index=np.arange(0,filt_data['frame'].max()), columns=thresholds)
+    #for threshold in thresholds:
+        #fract_moving=filt_data.groupby('frame').apply(lambda p: ((velocities[p.particle.values].iloc[3]>=threshold)==True).sum())
+        #fract_moving=fract_moving/num_particles
+        #num_particles_moving[threshold]=fract_moving
+    #num_particles_moving=num_particles_moving.mean(axis=0)    
+    #disps=max_displacement(filt_data,.156)
+    #dist_thresh=np.arange(.1,7,.1)
+    #particles=filt_data.groupby('particle').filter(lambda p: p.x.size>=50)
+    #particles=particles['particle'].unique()
+    #num_dist_mov=pd.DataFrame(index=np.arange(0,filt_data['frame'].max()), columns=dist_thresh)
+    #for i in range(0,len(dist_thresh)):
+        #stuck=[]
+        #for j in range(0,len(particles)):
+            #if disps.iloc[particles[j]]<dist_thresh[i]:
+                #stuck=np.append(stuck,particles[j])
+        #numStuckFrame=pd.Series(index=np.arange(0,filt_data['frame'].max()+1))
+        #for k in range(0,filt_data['frame'].max()+1): 
+            #indFrame=filt_data[filt_data['frame']==k]
+            #particlesFrame=indFrame['particle'].unique()
+            #tr=np.in1d(stuck,particlesFrame)
+            #numStuckFrame.iloc[k]=1-(np.sum(tr)/num_particles_frame)
             
-        num_dist_mov[dist_thresh[i]]=numStuckFrame
-        num_dist_mov=num_dist_mov.mean(axis=0)
+        #num_dist_mov[dist_thresh[i]]=numStuckFrame
+        #num_dist_mov=num_dist_mov.mean(axis=0)
         
     
     #fraction_moving=num_particles_moving/num_particles
     #fraction_dist_moving=num_dist_moving/num_particles
     #fraction_moving=mean(fraction_moving)
     #fraction_dist_moving=mean(fraction_dist_moving)
-    return avg_particles_frame,hist,velocities_by_frame,num_particles_moving,num_dist_mov
+    return avg_particles_frame,hist,velocities_by_frame,pmobile
 
 
 def get_diffs(particlex,particley,conversion):
