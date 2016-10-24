@@ -8,20 +8,22 @@ import pandas as pd
 import numpy as np
 import math as m
 import os 
-def velocityCalcs(mydir):
+import datetime
+
+def velocityCalcs(mydir,expttag):
 
         frame_rate=15
         conversion=.156
         min_frame=5
-        threshold=.9*4.59
+        #threshold=.9*4.59
         files=os.listdir(mydir)
         anpath=os.path.join(mydir,'Analyzed Movies')
         if os.path.isdir(anpath)==False:
             os.mkdir(anpath)
         
         
-        vel_mov=pd.DataFrame(index=files,columns=[.25,.5,1,2,3,4,5,6,7,8,9,10])
-        dist_mov=pd.DataFrame(index=files, columns=np.arange(.1,7,.1))
+        #vel_mov=pd.DataFrame(index=files,columns=[.25,.5,1,2,3,4,5,6,7,8,9,10])
+        #dist_mov=pd.DataFrame(index=files, columns=np.arange(.1,7,.1))
         finvelocities=pd.DataFrame(index=np.arange(0,40000), columns=files)
         finframes_vs=pd.DataFrame(index=np.arange(0,40000), columns=files)
         #finmobility=pd.DataFrame(index=files, columns=['Fraction Time','Percent by Particle'])
@@ -29,7 +31,7 @@ def velocityCalcs(mydir):
         count=0
         
         for file in files:
-            data=pd.read_excel(os.path.join(mydir,file),header=None, index_col=0, skiprows=[0],names=['particle','frame','x','y'])
+            data=pd.read_excel(os.path.join(mydir,file),header=None, skiprows=[0],names=['particle','frame','x','y'])
             maxframe=data['frame'].max()
             timescales=ap.get_timescales(frame_rate,maxframe)
             [filt_data,num_bad,avg_bad_frames,num_good,avg_good_frames]=ap.frame_filter(data,min_frame)
@@ -37,15 +39,23 @@ def velocityCalcs(mydir):
            
             
             #velocities,avg_per_frame=ap.calc_velocity(filt_data, frame_rate, conversion)
-            maxdisps=ap.max_displacement(filt_data)
+
+            #maxdisps=ap.max_displacement(filt_data)
+
+            maxdisps=ap.max_displacement(filt_data,conversion)
+
             #drift_vs=ap.drift_velocity(filt_data, maxdisps, conversion, frame_rate)
-            [percent_moving, time_moving]=ap.velocity_classification(filt_data)
+            #[percent_moving, time_moving]=ap.velocity_classification(filt_data)
             
-            [avg_particles_frame,hist,velocities_by_frame,vel_based_mov,dist_based_mov]=ap.vel_frame_by_frame(filt_data,velocities,maxdisps,threshold)
+
+            #[avg_particles_frame,hist,velocities_by_frame,vel_based_mov,dist_based_mov]=ap.vel_frame_by_frame(filt_data,velocities,maxdisps,threshold)
+
+            [avg_particles_frame,hist,velocities_by_frame,pmobile]=ap.vel_frame_by_frame(filt_data,velocities,maxdisps)
+
             ap.format_sheets(velocities_by_frame,timescales)
             ap.format_sheets(velocities,timescales)
-            vel_mov.iloc[count]=vel_based_mov.values
-            dist_mov.iloc[count]=dist_based_mov.values
+            #vel_mov.iloc[count]=vel_based_mov.values
+            #dist_mov.iloc[count]=dist_based_mov.values
             #Output Sheets
             
             #XY Orgnal
@@ -73,7 +83,7 @@ def velocityCalcs(mydir):
             
             
             #finmobility.iloc[count]=mobility.values        
-            finavg_per_frames.iloc[count]=[num_good,avg_particles_frame,'pass']#,#fraction_moving]
+            finavg_per_frames.iloc[count]=[num_good,avg_particles_frame,pmobile]#,#fraction_moving]
             finvelocities[file]=velocities['Geom Mean']
             finframes_vs[file]=velocities_by_frame['Geom Mean']
             
@@ -103,9 +113,11 @@ def velocityCalcs(mydir):
             count=count+1
         
         #write masterfile
-        writer2 = pd.ExcelWriter(os.path.join(mydir,'Salmonella.xlsx'), engine='xlsxwriter')
-        vel_mov.to_excel(writer2, sheet_name='Velocity Based Thresholds')
-        dist_mov.to_excel(writer2,sheet_name='Distance Based Moves')
+        now=datetime.datetime.now()
+        finalname='CompiledData'+' ' +expttag+' '+str(now.year) + str(now.month) + str(now.day) + ' '+str(now.hour) +str(now.minute) +str(now.second)+'.xlsx'  
+        writer2 = pd.ExcelWriter(os.path.join(mydir,finalname), engine='xlsxwriter')
+        #vel_mov.to_excel(writer2, sheet_name='Velocity Based Thresholds')
+        #dist_mov.to_excel(writer2,sheet_name='Distance Based Moves')
         finframes_vs.to_excel(writer2,sheet_name='Ind Particle Velocities')
         finvelocities.to_excel(writer2,sheet_name='Frame by Frame Velocities')
         finavg_per_frames.to_excel(writer2, sheet_name='Summary')
@@ -117,4 +129,4 @@ def velocityCalcs(mydir):
         return   
 
 
-velocityCalcs('C:\\Users\\amschaef\\Downloads\\salm3')
+velocityCalcs('C:\\Users\\amschaef\\Documents\\bacteria','jayframe1')
