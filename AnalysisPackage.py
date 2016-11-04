@@ -4,8 +4,7 @@ Created on Jul 8, 2016
 @author: amschaef
 '''
 
-#if __name__ == '__main__':
-    #pass
+
 
 import pandas as pd
 import numpy as np
@@ -27,18 +26,19 @@ def calculate_MSD(particleData,frame_rate,conversion,timescales):
     maxframe=particleData['frame'].max()    
     #timescales=get_timescales(frame_rate,maxframe+1)
     
-    #mean_disps=particleData.groupby('particle').apply(lambda p: get_diffs(p.x,p.y,conversion))
-    MSD=particleData.groupby('particle').apply(lambda p: prep_fft_MSD(p.x,p.y,conversion))
+    mean_disps=particleData.groupby('particle').apply(lambda p: get_diffs(p.x,p.y,conversion))
+    ##MSD=particleData.groupby('particle').apply(lambda p: prep_fft_MSD(p.x,p.y,conversion))
     #xdisps=mean_disps.apply(lambda p: p[1])
     #ydisps=mean_disps.apply(lambda p: p[2])
     #xdisps=xdisps.apply(lambda p: p[~np.isnan(p)])
     #ydisps=ydisps.apply(lambda p: p[~np.isnan(p)])
     #count=xdisps.apply(lambda p: p.size)
-    #MSD=mean_disps.apply(lambda p: p[1]+p[2]) 
+    MSD=mean_disps.apply(lambda p: p[1]+p[2]) 
     Deff=MSD.apply(lambda p: p/4/timescales[0:p.size])
     #MSDy=ydisps.apply(lambda p: (conversion**2)*np.cumsum(((p)**2)))
+    #MSDx=xdisps.apply(lambda p: (conversion**2)*np.cumsum(((p)**2)))
     #MSDx=MSDx/count
-    #MSDy=MSDy/count
+    ##MSDy=MSDy/count
     #MSD=MSDx+MSDy
     #Deff=MSD/4
     #Deff=Deff.apply(lambda p: np.divide(p,timescales[0:p.size]))
@@ -73,22 +73,53 @@ def vel_mobility(velocities,threshold):
     
     return
 
+def elim(particle,min_frames,consec_frames):
+    no_blanks=particle.x[~particle.x.isnull()]
+    #if len(no_blanks)<min_frames or consec_frames[particle.particle.iloc[0]]<4:
+    if len(no_blanks)<min_frames:
+        return True
+    else:
+        return False
+
 def frame_filter(data,min_frames):
+    consec_frames=data.groupby('particle').apply(lambda p: find_consec(p.x))
     
-    bad_data=data.groupby('particle').filter(lambda p: p.x.size<min_frames)
-    filt_data = data.groupby('particle').filter(lambda p: p.x.size >=min_frames)
+    bad_data=data.groupby('particle').filter(lambda p: elim(p,min_frames,consec_frames))
+    filt_data = data.groupby('particle').filter(lambda p: (elim(p,min_frames,consec_frames)==False))
+    
     num_good=filt_data['particle'].nunique()
-    avg_good_frames=np.mean(filt_data.groupby('particle').apply(lambda p: p.x.size))
+    avg_good_frames=np.mean(filt_data.groupby('particle').apply(lambda p: len(p.x[~p.x.isnull()])))
     num_bad=bad_data['particle'].nunique()
-    avg_bad_frames=np.mean(bad_data.groupby('particle').apply(lambda p: p.x.size))
+    avg_bad_frames=np.mean(bad_data.groupby('particle').apply(lambda p: len(p.x[~p.x.isnull()])))
     
     
     return filt_data,num_bad,avg_bad_frames,num_good,avg_good_frames
 
+def find_consec(particle):
+    particle=particle.values
+    arrays= [particle[s] for s in np.ma.clump_unmasked(np.ma.masked_invalid(particle))]
+    lengths=[len(array) for array in arrays]
+    return max(lengths)
+
+def check_def(p,location):
+    if np.isfinite(p[location]):
+        return p[location]
+    
+    else:
+        return 0
+        #if p.size>location:
+         #   return p[location-1]
+              
+        #else:
+         #   return p[p.size-1]
+    
+   
+
+
 def MSD_classification(MSD,Deff,data,min_frames,frame_rate,timescales,crittime):
          
         location=np.where(timescales==crittime)[0][0]
-        critDeff=Deff.apply(lambda p: p[location] if p.size>location else p[p.size-1])
+        critDeff=Deff.apply(lambda p: check_def(p,location) )
         cutoff=-1.5
         indices_stuck=critDeff[np.log10(critDeff)<cutoff].index
         if indices_stuck.size==0:
@@ -178,7 +209,7 @@ def insert_blanks(data):
                 blanks['frame']=np.arange(start+1,end)
                 startslice=indData[indData['frame']==groups[group][0]].index
                 endslice=indData[indData['frame']==groups[group][len(groups[group])-1]].index                                                 
-                finData=pd.concat([finData,indData.iloc[startslice[0]:endslice[0]+1]], axis=0, ignore_index=True)
+                finData=pd.concat([finData,indData.loc[startslice[0]:endslice[0]]], axis=0, ignore_index=True)
                 finData=pd.concat([finData,blanks],axis=0,ignore_index=True)
            elif group==len(groups)-1:
                 startslice=indData[indData['frame']==groups[group][0]].index
@@ -244,8 +275,8 @@ def MSD_frame_by_frame(Deff,filt_data,MSD):
         A_deff['Deff'].loc[A_deff['particle']==int(particles[i])]=timeDeff[int(particles[i])]
         
 
-    lower_edge= floor(log10(min(A_deff['Deff'].iloc[np.nonzero(A_deff['Deff'])])))
-    upper_edge= ceil(log10(max(A_deff['Deff'].iloc[np.nonzero(A_deff['Deff'])]))) 
+    lower_edge= floor(log10(min(A_deff['Deff'].iloc[np.nonzero(~np.isnan(A_deff['Deff']))])))
+    upper_edge= ceil(log10(max(A_deff['Deff'].iloc[np.nonzero(~np.isnan(A_deff['Deff']))]))) 
     num_edge=(upper_edge-lower_edge)/.05 +1
     fbf_edges=np.linspace(start=lower_edge,stop=upper_edge,num=num_edge)
     num_particles=[]
@@ -324,7 +355,7 @@ def vel_frame_by_frame(filt_data,velocities,maxdisps):
             or sqrt((array(p.x)[-1]-array(p.x)[0])**2 + (array(p.y)[-1]-array(p.y)[0])**2) > 5*.78)
     mov_particles=mov_particles['particle'].unique()  
     pmobile=filt_data.groupby('frame').apply(lambda p: (np.in1d(mov_particles,p.particle).sum()))
-    m=0
+    pmobile=mean(pmobile/num_particles)
     #thresholds=[.25,.5,1,2,3,4,5,6,7,8,9,10]
     #num_particles_moving=pd.DataFrame(index=np.arange(0,filt_data['frame'].max()), columns=thresholds)
     #for threshold in thresholds:

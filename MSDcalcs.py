@@ -23,7 +23,7 @@ def MSDCalcs(mydir,expttag):
     #our parameters---where will be set?
     frame_rate=15
     conversion=.156
-    min_frames=5
+    min_frames=0
     crittime=4/15
     # call functions
     count=0
@@ -37,7 +37,7 @@ def MSDCalcs(mydir,expttag):
     logDeff25.insert(0,'logDeff(10)',np.round(np.arange(-7,3,.25),decimals=2))
     
     for file in files:
-        data=pd.read_excel(os.path.join(mydir,file),index_col=None,skiprows=[0],header=None,names=['particle','frame','x','y'])
+        data=pd.read_excel(os.path.join(mydir,file),index_col=None,header=None,names=['particle','frame','x','y'],sheetname='Sheet1')
         if data.empty:
             print('The tracking file ' +file+' could not be loaded. The file is either empty, or is not formatted correctly.')
             finFrameMSD=finFrameMSD.drop(file,1)
@@ -49,7 +49,8 @@ def MSDCalcs(mydir,expttag):
                      
             maxframe=data['frame'].max()
             time=pd.Series(ap.get_timescales(frame_rate,maxframe))
-            [filt_data,num_bad,avg_bad_frames,num_good,avg_good_frames]=ap.frame_filter(data,min_frames)
+            blank_data=ap.insert_blanks(data)
+            [filt_data,num_bad,avg_bad_frames,num_good,avg_good_frames]=ap.frame_filter(blank_data,min_frames)
         
             if filt_data.empty:
                 print('There are no particles tracked for more than the minimum number of frames. Please check ' + file + ', or lower the minimum number of frames.')
@@ -59,10 +60,10 @@ def MSDCalcs(mydir,expttag):
                 logDeff1=logDeff1.drop(file,1)
                 logDeff25=logDeff25.drop(file,1)
             else:
-                finData=ap.insert_blanks(filt_data)
-                [MSD,Deff]=ap.calculate_MSD(finData,frame_rate,conversion,time)
-                [num_stuck,avg_stuck_frames,MSD_stuck,XY_stuck,num_moving,avg_moving_frames,MSD_moving,XY_moving]=ap.MSD_classification(MSD, Deff, finData, min_frames, frame_rate, time,crittime)
-                [edges,bins,percentages]=ap.dist(finData,5)
+                #finData=ap.insert_blanks(filt_data)
+                [MSD,Deff]=ap.calculate_MSD(filt_data,frame_rate,conversion,time)
+                [num_stuck,avg_stuck_frames,MSD_stuck,XY_stuck,num_moving,avg_moving_frames,MSD_moving,XY_moving]=ap.MSD_classification(MSD, Deff, filt_data, min_frames, frame_rate, time,crittime)
+                [edges,bins,percentages]=ap.dist(filt_data,5)
                 #time=pd.Series(time)
                 ap.format_sheets(MSD,time)
                 
@@ -78,7 +79,7 @@ def MSDCalcs(mydir,expttag):
         
         
             ##FRAME BY FRAME
-                [fraction_moving,num_particles,log_Deffdist,A_deff,fbf_edges,frame_geom,avg_particles_frame]=ap.MSD_frame_by_frame(Deff,finData,MSD)
+                [fraction_moving,num_particles,log_Deffdist,A_deff,fbf_edges,frame_geom,avg_particles_frame]=ap.MSD_frame_by_frame(Deff,filt_data,MSD)
                 
             ## Make Excel Sheets
                 ap.format_sheets(Deff,time)
@@ -89,10 +90,10 @@ def MSDCalcs(mydir,expttag):
                 avg_percent_moving=np.average(fraction_moving[locations])*100
                 avg_num_particles=np.average(num_particles)
                 avg_logDeff_dist=log_Deffdist.iloc[locations].mean(axis=0)
-                frame_by_frame=pd.DataFrame({'Frame #':np.arange(finData['frame'].min(),maxframe+1),'# Particles':np.asarray(num_particles),'% Moving':fraction_moving}, columns=['Frame #','# Particles','% Moving',' '])
+                frame_by_frame=pd.DataFrame({'Frame #':np.arange(filt_data['frame'].min(),maxframe+1),'# Particles':np.asarray(num_particles),'% Moving':fraction_moving}, columns=['Frame #','# Particles','% Moving',' '])
                 
                 frame_by_frame_stats=pd.DataFrame({'Lables':['Average % Moving','Average # Particles'],'Values':[avg_percent_moving, avg_num_particles]})
-                log_Deffdist.insert(0,'Frame',np.arange(finData['frame'].min(),maxframe+1))
+                log_Deffdist.insert(0,'Frame',np.arange(filt_data['frame'].min(),maxframe+1))
                 dist_header=pd.DataFrame(index=np.arange(0,2),columns=np.arange(1,len(fbf_edges)))
                 dist_header.iloc[0]=pd.Series(fbf_edges)
                 dist_header.iloc[1]=avg_logDeff_dist.values
@@ -173,38 +174,4 @@ def MSDCalcs(mydir,expttag):
     return
 
 
-MSDCalcs('C:\\Users\\amschaef\\Documents\\GrantData\\ManualTrack\\200nmPSNH2 F21 140717 native pH 01\\test', 'testing')                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
+MSDCalcs('C:\\Users\\amschaef\\Downloads\\no linking\\Individual Movie XY Data\\Compiled Movies\\test','fix')
