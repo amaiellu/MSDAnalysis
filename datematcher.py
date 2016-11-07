@@ -78,6 +78,6 @@ def removeshifted(mydir):
     
     return
 #removethumbs('E:\\Menstrual Cycle Study')
-#dateinserter('E:\\Menstrual Cycle Study')
+dateinserter('G:\\remaining MC Study vids')
 
-removeshifted('C:\\Users\\amschaef\\Documents\\HSVtry2')
+#removeshifted('C:\\Users\\amschaef\\Documents\\HSVtry2')

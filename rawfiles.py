@@ -12,10 +12,10 @@ def attempt():
             for file in files:
                 folder=os.path.basename(root)
                 
-                if file.endswith(".xlsx") and not file.endswith('_tmp.csv'):
-                    #os.rename(os.path.join(root,file),os.path.join(root,folder+'.csv'))
-                    shutil.move(os.path.join(root,file),'C:\\Users\\amschaef\\Documents\\HSVtry2\\Reformatted_Data_Files')
+                if file.endswith(".csv") and not file.endswith('_tmp.csv'):
+                    os.rename(os.path.join(root,file),os.path.join(root,folder+'.csv'))
+                    shutil.copy(os.path.join(root,folder+'.csv'),'G:\\remaining MC Study vids\\gathered')
                     
 
-os.chdir('C:\\Users\\amschaef\\Documents\\HSVtry2\\Reformatted_Data_Files')
+os.chdir('G:\\remaining MC Study vids')
 attempt()
