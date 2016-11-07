@@ -26,7 +26,7 @@ def calculate_MSD(particleData,frame_rate,conversion,timescales):
     maxframe=particleData['frame'].max()    
     #timescales=get_timescales(frame_rate,maxframe+1)
     
-    mean_disps=particleData.groupby('particle').apply(lambda p: get_diffs(p.x,p.y,conversion))
+    mean_disps=particleData.groupby('particle').apply(lambda p: get_diffs(p.particle,p.x,p.y,conversion))
     ##MSD=particleData.groupby('particle').apply(lambda p: prep_fft_MSD(p.x,p.y,conversion))
     #xdisps=mean_disps.apply(lambda p: p[1])
     #ydisps=mean_disps.apply(lambda p: p[2])
@@ -59,7 +59,9 @@ def get_gmean(data):
         mat1=datamat[i]
         mat1=mat1[~np.isnan(mat1)]
         mat1=mat1[np.nonzero(mat1)]
+        
         gData.append(gmean(mat1))
+        
         
     gData=pd.Series(gData)
     
@@ -75,8 +77,8 @@ def vel_mobility(velocities,threshold):
 
 def elim(particle,min_frames,consec_frames):
     no_blanks=particle.x[~particle.x.isnull()]
-    #if len(no_blanks)<min_frames or consec_frames[particle.particle.iloc[0]]<4:
-    if len(no_blanks)<min_frames:
+    if len(no_blanks)<min_frames or consec_frames[particle.particle.iloc[0]]<5:
+    #if len(no_blanks)<min_frames:
         return True
     else:
         return False
@@ -106,12 +108,12 @@ def check_def(p,location):
         return p[location]
     
     else:
-        return 0
-        #if p.size>location:
-         #   return p[location-1]
+        
+        if p[np.isfinite(p)].size>location+1:
+            return p[location-1]
               
-        #else:
-         #   return p[p.size-1]
+        else:
+            return 0
     
    
 
@@ -174,6 +176,10 @@ def format_sheets(sheet,time):
            
         
         sheet.insert(0,'Geom Mean',get_gmean(sheet))
+        sheet.insert(0,'Timescales',time[0:sheet.shape[0]])
+        sheet.insert(2,' ',pd.Series())
+def avg_format_sheets(sheet,time):
+        sheet.insert(0,'Geom Mean',sheet.mean(axis=1))
         sheet.insert(0,'Timescales',time[0:sheet.shape[0]])
         sheet.insert(2,' ',pd.Series())
     
@@ -267,7 +273,8 @@ def max_displacement(data,conversion):
 
 def MSD_frame_by_frame(Deff,filt_data,MSD):
     max_frame=filt_data['frame'].max()
-    A_deff=pd.DataFrame({'particle':filt_data['particle'],'frame':filt_data['frame'],'Deff': pd.Series()}, columns=['particle','frame','Deff'])
+    noblanks=filt_data[np.isfinite(filt_data['x'])]
+    A_deff=pd.DataFrame({'particle':noblanks['particle'],'frame':noblanks['frame'],'Deff': pd.Series()}, columns=['particle','frame','Deff'])
     timeDeff=Deff.iloc[3]
     particles=A_deff['particle'].unique()
     
@@ -288,7 +295,7 @@ def MSD_frame_by_frame(Deff,filt_data,MSD):
     spread=A_deff.groupby('frame').apply(lambda p: np.histogram(np.log10(p.Deff),bins=fbf_edges)[0])
     logDeffdist=spread.apply(lambda p : pd.Series( p/sum(p)*100))
     
-    num_particles_frame=filt_data.groupby('frame').apply(lambda p: ((np.isnan(p.particle))==False).sum())
+    num_particles_frame=noblanks.groupby('frame').apply(lambda p: ((np.isnan(p.particle))==False).sum())
     avg_particles_frame=mean(num_particles_frame)
     
     
@@ -391,7 +398,8 @@ def vel_frame_by_frame(filt_data,velocities,maxdisps):
     return avg_particles_frame,hist,velocities_by_frame,pmobile
 
 
-def get_diffs(particlex,particley,conversion):
+def get_diffs(particle,particlex,particley,conversion):
+    #print(particle)
     mean_dispsx=[]
     mean_dispsy=[]
     MSDx=[]

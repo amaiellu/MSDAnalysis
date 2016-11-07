@@ -23,7 +23,7 @@ def MSDCalcs(mydir,expttag):
     #our parameters---where will be set?
     frame_rate=15
     conversion=.156
-    min_frames=0
+    min_frames=5
     crittime=4/15
     # call functions
     count=0
@@ -37,7 +37,7 @@ def MSDCalcs(mydir,expttag):
     logDeff25.insert(0,'logDeff(10)',np.round(np.arange(-7,3,.25),decimals=2))
     
     for file in files:
-        data=pd.read_excel(os.path.join(mydir,file),index_col=None,header=None,names=['particle','frame','x','y'],sheetname='Sheet1')
+        data=pd.read_excel(os.path.join(mydir,file),index_col=None,header=None,skiprows=[0],names=['particle','frame','x','y'],sheetname='Sheet1')
         if data.empty:
             print('The tracking file ' +file+' could not be loaded. The file is either empty, or is not formatted correctly.')
             finFrameMSD=finFrameMSD.drop(file,1)
@@ -83,7 +83,7 @@ def MSDCalcs(mydir,expttag):
                 
             ## Make Excel Sheets
                 ap.format_sheets(Deff,time)
-                ap.format_sheets(frame_geom,time)
+                ap.avg_format_sheets(frame_geom,time)
                 fraction_moving=np.nan_to_num(fraction_moving)
                 locations=np.asarray(num_particles)
                 locations=np.where(locations>0)
@@ -174,4 +174,4 @@ def MSDCalcs(mydir,expttag):
     return
 
 
-MSDCalcs('C:\\Users\\amschaef\\Downloads\\no linking\\Individual Movie XY Data\\Compiled Movies\\test','fix')
+MSDCalcs('C:\\Users\\amschaef\\Documents\\Lai Lab\\Ebola in AM study\\Reformatted_Data_Files\\Files For Check Tracking\\Links\\Compiled Movies\\compile 1','Ebola Tracing test')

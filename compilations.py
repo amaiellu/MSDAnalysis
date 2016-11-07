@@ -21,7 +21,7 @@ def compile_movies(mydir):
             XY_all=pd.DataFrame(columns=['particle','frame','x','y'])
             for file in filenames:
                 if file.endswith('.xlsx'):
-                    this_movie=pd.read_excel(os.path.join(dirpaths,file),header=None,names=['particle','frame','x','y'],sheetname='Sheet3')
+                    this_movie=pd.read_excel(os.path.join(dirpaths,file),header=None,names=['particle','frame','x','y'],sheetname='Sheet1')
                     max_particle=XY_all['particle'].max()
                     if ~isnan(max_particle):
                         empty=np.empty(this_movie.shape[0])
@@ -62,27 +62,40 @@ def fixfiles(mydir):
     return
 
 def tracelink(mydir,conversion,cutoff):
-    if os.path.isdir(os.path.join(mydir,'Links'))==False:
-        os.mkdir(os.path.join(mydir,'Links'))
+#    if os.path.isdir(os.path.join(mydir,'Links'))==False:
+        #os.mkdir(os.path.join(mydir,'Links'))
     files=os.listdir(mydir)
+    files=files
     for file in files:
-        data=pd.read_excel(os.path.join(mydir,file),header=None,names=['particle','frame','x','y'],sheetname='Sheet3')
+        data=pd.read_excel(os.path.join(mydir,file),header=None,names=['particle','frame','x','y'],sheetname='Sheet1')
         exits=data.groupby('particle', as_index=False).apply(lambda p: p.tail(1))
         exits=exits.groupby('particle', as_index=False).filter(lambda p: p.frame.values[0]<301) #find all particle exits. 301 is the last frame, so nothing will be joined after this
         particles=exits['particle'].unique() #list of unique particles to check for links
         entries=data.groupby('particle').apply(lambda p: p.iloc[0]) 
         entries=entries.groupby('particle',as_index=False).filter(lambda p: p.frame.values[0]>2 ) #find all entry points for particles. if it enters in the first frame, it won't be linked to anything prior
-       
         entries.sort_values('frame',inplace=True) # make sure the entries are in order, as we will stop after the closest match is found
+        #matches=pd.DataFrame(index=np.arange(0,len(entries)*len(exits)),columns=['exit particle','exit frame', 'matched particle', 'matched frame', 'distance','msd'])
+        #count=0
         for i in range (0,len(particles)): # loop through each particle exit
             
             inddata=exits.iloc[i]  # get current exit
-             
+            #exit_part=inddata['particle']
             subset_entries=entries[entries['frame'].values>inddata['frame']]# get list of particles that enter after this one exits
             for j in range (0,subset_entries.shape[0]): # go through all entries
                 entry=subset_entries.iloc[j] # get current entry
                 msd=conversion**2*((entry['x']-inddata['x'])**2+(entry['y']-inddata['y'])**2) # calculate distance requirement
                 if msd<cutoff: # check if it is a match
+                    #matches['exit particle'].iloc[count]=exit_part
+                    #matches['exit frame'].iloc[count]=inddata['frame']
+                    #matches['matched particle'].iloc[count]=entry['particle']
+                    #matches['matched frame'].iloc[count]=entry['frame']
+                    #matches['distance'].iloc[count]=entry['frame']-inddata['frame']
+                    #matches['msd'].iloc[count]=msd
+                    #count=count+1
+                    #matches['matched particle'][matches['exit particle']==exit_part]=np.append(matches['matched particle'][matches['exit particle']==exit_part],entry['particle'])
+                    #matches['matched frame'][matches['exit particle']==exit_part]=np.append(matches['matched frame'][matches['exit particle']==exit_part],entry['frame'])
+                    #matches['distance'][matches['exit particle']==exit_part]=np.append(matches['distance'][matches['exit particle']==exit_part],entry['frame']-inddata['frame'])
+                    #matches['msd'][matches['exit particle']==exit_part]=np.append(matches['msd'][matches['exit particle']==exit_part],msd)
                     droppart=entry['particle'] # particle must be removed from list of entries so we don't match it to some other particle later
                     entries=entries.drop(droppart) # drop the particle from entries
                     if len(exits[exits['particle']==droppart])>0: #if the entry particle that was just linked is in the list of exits, we have to update the particleid
@@ -92,60 +105,31 @@ def tracelink(mydir,conversion,cutoff):
                     data.loc[ind,'particle']=exits.iloc[i].particle #link the particles together in the original dataframe 
                     
                     break # stop looking for matches to this particle
-                     #comp_entries=entries.iloc[q]
-               #     droppart=math.floor(comp_entries.particle)
-                #    entries=entries.drop(droppart)
-                 #   if len(exits[exits['particle']==droppart])>0:
-                  #      x=exits[exits['particle']==droppart].index.labels[0][0]
-                   #     exits.loc[x,'particle']=exits.iloc[i].particle
-                    #ind=data[data['particle']==droppart].index
-                    #data.loc[ind,'particle']=exits.iloc[i].particle
+        #matches.sort_values(['exit particle','msd'], inplace=True)
+        #q=matches.groupby('exit particle').apply(lambda p: min(p.msd) )
+        #minmatches=matches.iloc[q.index]
+        #matches[np.isfinite(matches['matched particle']).values]
+        #i=0
+        #while i < matches.shape[0]:
+        #    indData=matches.iloc[i]
             
-        #compent=exits.groupby('particle').apply(lambda p: find_ent(p,entries,conversion,cutoff))
-        #comp_entries=pd.Series(index=exits['particle'])
-        #for i in range(0,exits.shape[0]):
-         #   frame=exits.iloc[i].frame
-          #  
-           # for q in range(0,entries.shape[0]):
-            #    msd=conversion**2*((entries.iloc[q].x-exits.iloc[i].x)**2+(entries.iloc[q].y-exits.iloc[i].y)**2)
-             #   if entries.iloc[q].frame>frame and msd<cutoff:
-              #      comp_entries=entries.iloc[q]
-               #     droppart=math.floor(comp_entries.particle)
-                #    entries=entries.drop(droppart)
-                 #   if len(exits[exits['particle']==droppart])>0:
-                  #      x=exits[exits['particle']==droppart].index.labels[0][0]
-                   #     exits.loc[x,'particle']=exits.iloc[i].particle
-                    #ind=data[data['particle']==droppart].index
-                    #data.loc[ind,'particle']=exits.iloc[i].particle
-                    #print(i)
-                    #break
-            #<comp_entries=entries.groupby('particle').filter(lambda p: p.frame>frame)
-            #comp_entries=comp_entries.groupby('particle').filter(lambda p: conversion**2*((p.x-exits.iloc[i].x)**2+(p.y-exits.iloc[i].y)**2)<cutoff)
-            #if (len(comp_entries)!=0):
-            #    if (len(comp_entries)>1):
-             #       min=302
-              #      for j in range(0,len(comp_entries)):
-               #         if(comp_entries.iloc[j].frame-frame<min):
-                #           min=comp_entries.iloc[j].frame-frame
-                 #          mindex=j
-                
-                    
-                  #  comp_entries=comp_entries.iloc[mindex]
-                #droppart=math.floor(comp_entries.particle)
-               # entries=entries.drop(droppart)
-               # x=exits[exits['particle']==droppart].index.labels[0][0]
-               # exits.loc[x,'particle']=exits.iloc[i].particle
-            #temp=np.empty(data[data['particle']==comp_entries['particle'].values[0]].shape[0])
-            #temp=temp.fill(exits.iloc[i].particle)
-                #ind=data[data['particle']==droppart].index
-                #data.loc[ind,'particle']=exits.iloc[i].particle
-                #print(i)>
+        #    if np.isfinite(indData['matched particle']) and indData['matched particle'] in data['particle']:
+        #        droppart=indData['matched particle']
+        #        indexes=matches[matches['exit particle']==indData['exit particle']].index
+                #i=i+len(matches[matches['exit particle']==indData['exit particle']])
+                #matches=matches[matches['exit particle']!=indData['exit particle']]
+        #        matches['exit particle'][matches['exit particle']==droppart]=indData['exit particle']
+        #        ind=data[data['particle']==droppart].index 
+        #        end=max(indexes)
+        #        i=end
+        #        data.loc[ind,'particle']=indData['exit particle']
+        #    i=i+1        
         data.sort_values(['particle','frame'],inplace=True)
-        writer=pd.ExcelWriter(os.path.join(mydir,'Links',file), engine='xlsxwriter')
+        writer=pd.ExcelWriter(os.path.join(mydir,'links '+file), engine='xlsxwriter')
         data.to_excel(writer,sheet_name='Sheet1',index=False)   
         writer.save()
         print('completed ' + file)
-        shutil.move(os.path.join(mydir,file),'C:\\Users\\amschaef\\Documents\\Lai Lab\\Ebola in AM study\\Reformatted_Data_Files\\Files For Check Tracking\\done')
+        #shutil.move(os.path.join(mydir,file),'C:\\Users\\amschaef\\Documents\\Lai Lab\\Ebola in AM study\\Reformatted_Data_Files\\Files For Check Tracking\\done')
         
     return
     
@@ -177,7 +161,7 @@ def shift_check(dir):
     return
 
     
-compile_movies('C:\\Users\\amschaef\\Downloads\\no linking\\Individual Movie XY Data')
+#compile_movies('C:\\Users\\amschaef\\Downloads\\no linking\\Individual Movie XY Data')
 #fixfiles('C:\\Users\\amschaef\\Documents\\Lai Lab\\Ebola in AM study\\Reformatted_Data_Files\\Files For Check Tracking\\Links')
 #compile_movies('C:\\Users\\amschaef\\Documents\\Lai Lab\\Ebola in AM study\\Reformatted_Data_Files\\Files For Check Tracking\\Links')
 #filesearch('C:\\Users\\amschaef\\Documents\\HSV data')
